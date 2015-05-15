@@ -13,7 +13,7 @@ func accessLog(next http.Handler) http.Handler {
 			"host":   r.Host,
 			"path":   r.URL.Path,
 			"srcip":  r.RemoteAddr,
-		}).Info("Access Log")
+		}).Info("Access log")
 
 		next.ServeHTTP(w, r)
 	})

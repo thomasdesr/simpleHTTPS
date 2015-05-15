@@ -26,8 +26,7 @@ func main() {
 		return
 	}
 
-	switch len(opts.Verbose) {
-	case 1:
+	if len(opts.Verbose) >= 1 {
 		log.SetLevel(log.DebugLevel)
 	}
 
@@ -35,14 +34,21 @@ func main() {
 		var err error
 		opts.Hostname, err = os.Hostname()
 		if err != nil {
-			log.WithField("err", err).Error("Unable to get hostname")
+			log.WithField("err", err).Error("Unable to determine the local system's hostname")
 		}
 	}
 
-	cert, key, err := GenerateTLSCertKeyPair(opts.Hostname)
+	template, err := Generatex509Cert(opts.Hostname)
 	if err != nil {
-		log.Fatal("Unable to generate a keypair to use for https")
+		log.Fatal("Unable to generate a x509 cert to use for https")
 	}
+
+	cert, key, err := GetCertPair(template)
+	if err != nil {
+		log.Fatal("Unable to generate the cert:key pair for https")
+	}
+
+	log.WithField("fingerprint", CalcFingerprint(&template)).Info("Cert Fingerprint")
 
 	serv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
