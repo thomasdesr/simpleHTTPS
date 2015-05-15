@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"log"
+	"fmt"
 	"math/big"
 	"net"
 	"net/http"
@@ -31,7 +31,7 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-func ListenAndServeTLSCertStuffFromMemory(srv *http.Server, cert, key []byte) error {
+func ListenAndServeTLSCertFromMemory(srv *http.Server, cert, key []byte) error {
 	addr := srv.Addr
 	if addr == "" {
 		addr = ":https"
@@ -60,10 +60,10 @@ func ListenAndServeTLSCertStuffFromMemory(srv *http.Server, cert, key []byte) er
 	return srv.Serve(tlsListener)
 }
 
-func GenerateTLSThings(host string) ([]byte, []byte) {
+func GenerateTLSCertKeyPair(host string) (cert []byte, key []byte, err error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		log.Fatalf("failed to generate private key: %s", err)
+		return cert, key, fmt.Errorf("failed to generate private key: %s", err)
 	}
 
 	notBefore := time.Now()
@@ -72,13 +72,13 @@ func GenerateTLSThings(host string) ([]byte, []byte) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		log.Fatalf("failed to generate serial number: %s", err)
+		return cert, key, fmt.Errorf("failed to generate serial number: %s", err)
 	}
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
+			Organization: []string{host},
 		},
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
@@ -99,7 +99,7 @@ func GenerateTLSThings(host string) ([]byte, []byte) {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		log.Fatalf("Failed to create certificate: %s", err)
+		return cert, key, fmt.Errorf("Failed to create certificate: %s", err)
 	}
 
 	certOut := bytes.NewBuffer([]byte{})
@@ -108,5 +108,5 @@ func GenerateTLSThings(host string) ([]byte, []byte) {
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 
-	return certOut.Bytes(), keyOut.Bytes()
+	return certOut.Bytes(), keyOut.Bytes(), nil
 }

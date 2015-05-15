@@ -2,33 +2,55 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
-	"strconv"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/jessevdk/go-flags"
 )
 
+var opts struct {
+	Verbose  []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Hostname string `long:"hostname" description:"Hostname to use for the cert"`
+	BindAddr string `short:"i" long:"interface" default:"0.0.0.0" description:"Interface (as IP) to bind to"`
+	BindPort string `short:"p" long:"port" default:"8443" description:"Port to bind to"`
+}
+
+func init() {
+	log.SetLevel(log.InfoLevel)
+	log.SetOutput(os.Stderr)
+}
+
 func main() {
-	var port int
-	var err error
-
-	if len(os.Args) > 1 {
-		port, err = strconv.Atoi(os.Args[1])
-	} else {
-		port = 8443
+	if _, err := flags.Parse(&opts); err != nil {
+		return
 	}
 
-	hostname, err := os.Hostname()
+	switch len(opts.Verbose) {
+	case 1:
+		log.SetLevel(log.DebugLevel)
+	}
+
+	if opts.Hostname == "" {
+		var err error
+		opts.Hostname, err = os.Hostname()
+		if err != nil {
+			log.WithField("err", err).Error("Unable to get hostname")
+		}
+	}
+
+	cert, key, err := GenerateTLSCertKeyPair(opts.Hostname)
 	if err != nil {
-		panic(err)
+		log.Fatal("Unable to generate a keypair to use for https")
 	}
 
-	serv := &http.Server{Addr: fmt.Sprintf(":%v", port), Handler: http.FileServer(http.Dir("."))}
-
-	cert, key := GenerateTLSThings(hostname)
+	serv := &http.Server{
+		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
+		Handler: accessLog(http.FileServer(http.Dir("."))),
+	}
 
 	go func() {
-		log.Fatal(ListenAndServeTLSCertStuffFromMemory(serv, cert, key))
+		log.Fatal(ListenAndServeTLSCertFromMemory(serv, cert, key))
 	}()
 
 	select {} // Block
