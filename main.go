@@ -7,6 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/jessevdk/go-flags"
+	"golang.org/x/net/http2"
 )
 
 var opts struct {
@@ -54,6 +55,8 @@ func main() {
 		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
 		Handler: accessLog(http.FileServer(http.Dir("."))),
 	}
+
+	http2.ConfigureServer(serv, nil)
 
 	go func() {
 		log.Fatal(ListenAndServeTLSCertFromMemory(serv, cert, key))
