@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -60,7 +59,7 @@ func ListenAndServeTLSCertFromMemory(srv *http.Server, cert, key []byte) error {
 	return srv.Serve(tlsListener)
 }
 
-func Generatex509Cert(host string) (cert x509.Certificate, err error) {
+func Generatex509Cert(host string) (cert *x509.Certificate, err error) {
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 
@@ -70,7 +69,7 @@ func Generatex509Cert(host string) (cert x509.Certificate, err error) {
 		return cert, fmt.Errorf("failed to generate serial number: %s", err)
 	}
 
-	template := x509.Certificate{
+	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{host},
@@ -95,38 +94,40 @@ func Generatex509Cert(host string) (cert x509.Certificate, err error) {
 	return template, nil
 }
 
-func GetCertPair(template x509.Certificate) (cert []byte, key []byte, err error) {
-	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+func GetCertPair(template *x509.Certificate) (cert []byte, key *rsa.PrivateKey, err error) {
+	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return cert, key, fmt.Errorf("failed to generate private key: %s", err)
+		err = fmt.Errorf("failed to generate private key: %s", err)
+		return
 	}
 
-	b, err := x509.CreateCertificate(rand.Reader, &template, &template, &rsaKey.PublicKey, rsaKey)
+	cert, err = x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
-		return cert, key, fmt.Errorf("failed to create certificate: %s", err)
+		err = fmt.Errorf("failed to create certificate: %s", err)
+		return
 	}
 
-	certBuffer := bytes.NewBuffer([]byte{})
-	keyBuffer := bytes.NewBuffer([]byte{})
-
-	pem.Encode(certBuffer, &pem.Block{Type: "CERTIFICATE", Bytes: b})
-	pem.Encode(keyBuffer, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(rsaKey)})
-
-	return certBuffer.Bytes(), keyBuffer.Bytes(), nil
+	return
 }
 
-// Calculates a SHA256 digest of the SubjectPublicKeyInfo
-// section of an X.509 certificate.
-func CalcFingerprint(cert *x509.Certificate) string {
-	h := sha256.New()
-	h.Write(cert.RawSubjectPublicKeyInfo)
+func PEMEncodeCertPair(publicKey []byte, privateKey *rsa.PrivateKey) ([]byte, []byte) {
+	var certBuffer, keyBuffer bytes.Buffer
 
+	pem.Encode(&certBuffer, &pem.Block{Type: "CERTIFICATE", Bytes: publicKey})
+	pem.Encode(&keyBuffer, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+
+	return certBuffer.Bytes(), keyBuffer.Bytes()
+}
+
+func formatSerialNumber(cert *x509.Certificate) string {
 	var buf bytes.Buffer
-	for i, b := range h.Sum(nil) {
+
+	for i, b := range cert.SerialNumber.Bytes() {
 		if i > 0 {
 			fmt.Fprintf(&buf, ":")
 		}
 		fmt.Fprintf(&buf, "%02x", b)
 	}
+
 	return buf.String()
 }

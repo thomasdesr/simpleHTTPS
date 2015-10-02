@@ -48,19 +48,26 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to generate the cert:key pair for https")
 	}
+	pemCert, pemKey := PEMEncodeCertPair(cert, key)
 
-	log.WithField("fingerprint", CalcFingerprint(&template)).Info("Cert Fingerprint")
+	log.WithFields(log.Fields{
+		"version":       template.Version,
+		"serial_number": formatSerialNumber(template),
+		"start_date":    template.NotBefore,
+		"end_date":      template.NotAfter,
+	}).Debug("Certificate Details")
+	log.WithFields(log.Fields{
+		"DNSNames":       template.DNSNames,
+		"IPAddresses":    template.IPAddresses,
+		"EmailAddresses": template.EmailAddresses,
+	}).Debug("Certificate hosts")
+	log.WithFields(log.Fields(formatFingerprint(cert))).Info("Certificate Fingerprints")
 
 	serv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
 		Handler: accessLog(http.FileServer(http.Dir("."))),
 	}
-
 	http2.ConfigureServer(serv, nil)
 
-	go func() {
-		log.Fatal(ListenAndServeTLSCertFromMemory(serv, cert, key))
-	}()
-
-	select {} // Block
+	log.Fatal(ListenAndServeTLSCertFromMemory(serv, pemCert, pemKey))
 }
