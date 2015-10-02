@@ -15,6 +15,9 @@ var opts struct {
 	Hostname string `long:"hostname" description:"Hostname to use for the cert"`
 	BindAddr string `short:"i" long:"interface" default:"0.0.0.0" description:"Interface (as IP) to bind to"`
 	BindPort string `short:"p" long:"port" default:"8443" description:"Port to bind to"`
+	Args     struct {
+		Path string `positional-arg-name:"PATH" description:"Path to directory you want to serve"`
+	} `positional-args:"true"`
 }
 
 func init() {
@@ -29,6 +32,16 @@ func main() {
 
 	if len(opts.Verbose) >= 1 {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	if opts.Args.Path == "" {
+		opts.Args.Path = "."
+	}
+
+	if fi, err := os.Stat(opts.Args.Path); err != nil {
+		log.Fatalf("Error opening provided directory '%v' to serve", opts.Args.Path)
+	} else if !fi.IsDir() {
+		log.Fatalf("Provided path '%v' is not a directory, unable to serve", opts.Args.Path)
 	}
 
 	if opts.Hostname == "" {
@@ -65,7 +78,7 @@ func main() {
 
 	serv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
-		Handler: accessLog(http.FileServer(http.Dir("."))),
+		Handler: accessLog(http.FileServer(http.Dir(opts.Args.Path))),
 	}
 	http2.ConfigureServer(serv, nil)
 
