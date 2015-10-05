@@ -1,7 +1,7 @@
 simpleHTTPS
 ===========
 
-Like python's simpleHTTP server, but with HTTPS
+Like `python -m simpleHTTPServer`, but with HTTPS and HTTP 2.0 (SPDY) :D
 
 ```Usage:
   simpleHTTPS [OPTIONS] [PATH]
