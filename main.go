@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"os"
 
+	"golang.org/x/net/http2"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/jessevdk/go-flags"
-	"golang.org/x/net/http2"
 )
 
 var opts struct {

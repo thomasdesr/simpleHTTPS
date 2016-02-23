@@ -17,46 +17,24 @@ import (
 	"time"
 )
 
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return
-	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
-	return tc, nil
-}
-
 func ListenAndServeTLSCertFromMemory(srv *http.Server, cert, key []byte) error {
-	addr := srv.Addr
-	if addr == "" {
-		addr = ":https"
-	}
-	config := &tls.Config{
-		NextProtos: []string{"http/1.1"},
-	}
-	if srv.TLSConfig != nil {
-		*config = *srv.TLSConfig
+	var (
+		config *tls.Config = srv.TLSConfig
+		err    error
+	)
+
+	if config == nil {
+		srv.TLSConfig = new(tls.Config)
+		config = srv.TLSConfig
 	}
 
-	var err error
-	config.Certificates = make([]tls.Certificate, 1)
-	config.Certificates[0], err = tls.X509KeyPair(cert, key)
+	x509Cert, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return err
 	}
+	config.Certificates = append(config.Certificates, x509Cert)
 
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-
-	tlsListener := tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, config)
-	return srv.Serve(tlsListener)
+	return srv.ListenAndServeTLS("", "")
 }
 
 func Generatex509Cert(host string) (cert *x509.Certificate, err error) {
