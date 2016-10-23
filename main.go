@@ -83,5 +83,9 @@ func main() {
 	}
 	http2.ConfigureServer(serv, nil)
 
+	log.WithFields(log.Fields{
+		"addr": serv.Addr,
+	}).Info("HTTPS Server Starting")
+
 	log.Fatal(ListenAndServeTLSCertFromMemory(serv, pemCert, pemKey))
 }
