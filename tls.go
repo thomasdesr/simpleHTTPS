@@ -24,8 +24,7 @@ func ListenAndServeTLSCertFromMemory(srv *http.Server, cert, key []byte) error {
 	)
 
 	if config == nil {
-		srv.TLSConfig = new(tls.Config)
-		config = srv.TLSConfig
+		config = new(tls.Config)
 	}
 
 	x509Cert, err := tls.X509KeyPair(cert, key)

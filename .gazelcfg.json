@@ -1,0 +1,5 @@
+{
+	"GoPrefix": "github.com/thomaso-mirodin/simpleHTTPS",
+	"SrcDirs": [ "." ],
+	"AddSourcesRules": true
+}
