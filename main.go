@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	"golang.org/x/net/http2"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/jessevdk/go-flags"
 )
@@ -79,6 +81,7 @@ func main() {
 		Addr:    fmt.Sprintf("%s:%s", opts.BindAddr, opts.BindPort),
 		Handler: accessLog(http.FileServer(http.Dir(opts.Args.Path))),
 	}
+	http2.ConfigureServer(serv, nil)
 
 	log.WithFields(log.Fields{
 		"addr": serv.Addr,
