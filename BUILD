@@ -20,6 +20,7 @@ go_library(
     deps = [
         "//vendor:github.com/Sirupsen/logrus",
         "//vendor:github.com/jessevdk/go-flags",
+        "//vendor:golang.org/x/net/http2",
     ],
 )
 
